@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { useToast } from './useToast'
 import {
   catalogoService,
   type CatalogoItem,
@@ -24,27 +25,31 @@ let cargado = false
 export function useCatalogos() {
   async function cargarCatalogos(force = false) {
     if (cargado && !force) return
-    const [n, ec, et, g, c, p, u, i, m] = await Promise.all([
-      catalogoService.nacionalidades(),
-      catalogoService.estadosCiviles(),
-      catalogoService.etnias(),
-      catalogoService.gdos(),
-      catalogoService.cantones(),
-      catalogoService.provincias(),
-      catalogoService.uzdis(),
-      catalogoService.infracciones(),
-      catalogoService.medidas(),
-    ])
-    nacionalidades.value = n
-    estadosCiviles.value = ec
-    etnias.value = et
-    gdos.value = g
-    cantones.value = c
-    provincias.value = p
-    uzdis.value = u
-    infracciones.value = i
-    medidas.value = m
-    cargado = true
+    try {
+      const [n, ec, et, g, c, p, u, i, m] = await Promise.all([
+        catalogoService.nacionalidades(),
+        catalogoService.estadosCiviles(),
+        catalogoService.etnias(),
+        catalogoService.gdos(),
+        catalogoService.cantones(),
+        catalogoService.provincias(),
+        catalogoService.uzdis(),
+        catalogoService.infracciones(),
+        catalogoService.medidas(),
+      ])
+      nacionalidades.value = n
+      estadosCiviles.value = ec
+      etnias.value = et
+      gdos.value = g
+      cantones.value = c
+      provincias.value = p
+      uzdis.value = u
+      infracciones.value = i
+      medidas.value = m
+      cargado = true
+    } catch {
+      useToast().error('No se pudieron cargar los catálogos. Se muestran los valores disponibles.')
+    }
   }
 
   return {

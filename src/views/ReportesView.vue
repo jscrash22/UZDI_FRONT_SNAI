@@ -6,7 +6,7 @@ import { useToast } from '../composables/useToast'
 import { adolescenteService } from '../services/adolescente.service'
 import { expedienteService } from '../services/expediente.service'
 import { roleKey, type RoleKey } from '../router/access'
-import api from '../services/api'
+import { apiMock } from '../services/api'
 
 const { uzdis, cargarCatalogos } = useCatalogos()
 const { user } = useAuth()
@@ -106,7 +106,8 @@ async function cargarDatosOpcionales() {
   const tipos = tiposDisponibles.value
   if (tipos.includes('Familias y representantes')) {
     try {
-      const { data } = await api.get<RepresentanteRow[]>('/representante')
+      // PENDIENTE BACKEND: GET /representante
+      const { data } = await apiMock.get<RepresentanteRow[]>('/representante')
       representantes.value = data.filter(r => r.activo !== false)
     } catch {
       errorCarga.value = 'No se pudieron cargar los representantes para el reporte de familias.'
@@ -115,8 +116,9 @@ async function cargarDatosOpcionales() {
   if (tipos.includes('Participación en talleres')) {
     try {
       const [t, a] = await Promise.all([
-        api.get<TallerRow[]>('/taller'),
-        api.get<AsistenciaRow[]>('/asistencia-taller'),
+        // PENDIENTE BACKEND: GET /taller y GET /asistencia-taller
+        apiMock.get<TallerRow[]>('/taller'),
+        apiMock.get<AsistenciaRow[]>('/asistencia-taller'),
       ])
       talleres.value = t.data.filter(x => x.activo !== false)
       asistencias.value = a.data.filter(x => x.activo !== false)
@@ -199,7 +201,8 @@ const talleresFiltrados = computed(() =>
 
 async function registrarDescarga(formato: 'CSV' | 'PDF') {
   try {
-    await api.post('/reporte/descarga', {
+    // PENDIENTE BACKEND: POST /reporte/descarga (el backend expone /reportes/export/*)
+    await apiMock.post('/reporte/descarga', {
       tipo: form.tipo || 'Estadístico general',
       formato,
       desde: form.fechaDesde || undefined,

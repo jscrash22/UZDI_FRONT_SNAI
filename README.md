@@ -141,7 +141,7 @@ Usuarios demo: `superadmin`, `admin`, `coordinador`, `tsocial`, `psicologo`, `ed
 
 Contraseña: `Snai2026`.
 
-Con `VITE_USE_MOCK=false` se usa `VITE_API_BASE_URL` como backend real.
+Con `VITE_USE_MOCK=false` se usa `VITE_API_URL` (incluye `/api/v1`). El backend real está en Render; la primera petición puede tardar 30–40 s. Los módulos cuyo endpoint aún no existe usan el mock de forma explícita (`apiMock`).
 
 ---
 
@@ -154,9 +154,20 @@ npm.cmd run build # En Windows/PowerShell: vue-tsc + vite build
 npm run preview   # Sirve el build localmente
 ```
 
-El backend debe estar en `http://localhost:3000` para el modo real. En modo demo no se necesita backend.
+El backend real se configura en `.env` con `VITE_API_URL=https://uzdi-backend-api.onrender.com/api/v1`. En modo demo no se necesita backend.
+
+## GitHub Pages
+
+El workflow `.github/workflows/deploy-pages.yml` compila y publica automáticamente al hacer push a `main` o `master`.
+
+1. Subir el proyecto a un repositorio de GitHub.
+2. En `Settings > Pages > Build and deployment`, elegir **GitHub Actions**.
+3. Ejecutar `Actions > Deploy a GitHub Pages > Run workflow` si no hubo push inicial.
+
+El workflow fija `VITE_API_URL`, `VITE_USE_MOCK=false`, `VITE_ROUTER_MODE=hash` y calcula `VITE_BASE` según el nombre del repo, así que funciona tanto en `usuario.github.io` como en `usuario.github.io/<repo>/`. CORS ya está habilitado en el backend para dominios `github.io`.
 
 Documentación adicional:
 
+- `docs/INTEGRACION_BACKEND.md`: configuración, endpoints conectados, mocks pendientes y mensaje para el equipo de backend.
 - `docs/CUMPLIMIENTO.md`: estado de RF y RNF.
 - `docs/PENDIENTES_SNAI.md`: decisiones configurables pendientes de validación.

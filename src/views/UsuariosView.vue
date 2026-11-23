@@ -2,11 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { Users2, UserPlus, Pencil, X as XIcon, Save, Search, KeyRound, Ban } from '@lucide/vue'
 import { usuarioService, type UsuarioDto, type UsuarioRow } from '../services/usuario.service'
+import { mensajeError } from '../services/api'
 import { catalogoService, type UzdiItem } from '../services/catalogo.service'
 import { useAuth } from '../composables/useAuth'
 import { usePermisos } from '../composables/usePermisos'
 import { useToast } from '../composables/useToast'
-import { validarCedulaEC, validarEmail, validarTelefonoEC } from '../utils/validators'
+import { validarEmail, validarTelefonoEC } from '../utils/validators'
 
 const ROLES = [
   { id: 1, nombre: 'Trabajador Social' },
@@ -53,7 +54,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 
 const paged      = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
 const formInicial = (): UsuarioDto => ({
-  nombres: '', apellidos: '', cedula: '', cargo: '', login: '', correo: '',
+  nombres: '', apellidos: '', login: '', correo: '',
   telefono: '', password: '', tppr_ids: [], uzdi_id: user.value?.['uzdi_id'] as number | undefined,
 })
 
@@ -101,12 +102,8 @@ function closeModal() { modal.value = null }
 async function handleSave() {
   if (!modal.value) return
   const f = modal.value.form
-  if (!f.nombres || !f.apellidos || !f.login || !f.cedula || !f.cargo) {
-    modal.value.error = 'Nombres, apellidos, cédula, cargo y login son obligatorios.'
-    return
-  }
-  if (!validarCedulaEC(f.cedula)) {
-    modal.value.error = 'Ingrese una cédula ecuatoriana válida.'
+  if (!f.nombres || !f.apellidos || !f.login) {
+    modal.value.error = 'Nombres, apellidos y login son obligatorios.'
     return
   }
   if (!f.uzdi_id) {
@@ -142,10 +139,10 @@ async function handleSave() {
     await cargar()
     closeModal()
   } catch (e) {
-    const status = (e as { response?: { status?: number }; message?: string }).response?.status
+    const status = (e as { status?: number }).status
     modal.value.error = status === 409
-      ? 'Ya existe un usuario con ese login o cédula.'
-      : 'No se pudo guardar. Verifica los datos e intenta nuevamente.'
+      ? 'Ya existe un usuario con ese login.'
+      : mensajeError(e)
     modal.value.saving = false
     toast.error(modal.value.error)
   }
@@ -211,7 +208,6 @@ async function handleReset(row: UsuarioRow) {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Cédula</th>
               <th>Login</th>
               <th>UZDI</th>
               <th>Estado</th>
@@ -222,9 +218,8 @@ async function handleReset(row: UsuarioRow) {
             <tr v-for="row in paged" :key="row.id">
               <td>
                 <div class="tbl-name">{{ row.nombre }}</div>
-                <div class="tbl-sub">{{ row.cargo }} · {{ row.correo }}</div>
+                <div class="tbl-sub">{{ row.correo }}</div>
               </td>
-              <td><span class="pill">{{ row.cedula }}</span></td>
               <td><code class="tbl-code">{{ row.login }}</code></td>
               <td>{{ uzdiNombre(row.uzdi_id) }}</td>
               <td>
@@ -277,16 +272,6 @@ async function handleReset(row: UsuarioRow) {
               <div>
                 <label class="f-label">Apellidos <span class="f-req">*</span></label>
                 <input v-model="modal.form.apellidos" class="f-ctl" placeholder="Apellidos completos" required />
-              </div>
-            </div>
-            <div class="f2col">
-              <div>
-                <label class="f-label">Cédula <span class="f-req">*</span></label>
-                <input v-model="modal.form.cedula" class="f-ctl" placeholder="0000000000" maxlength="10" required />
-              </div>
-              <div>
-                <label class="f-label">Cargo <span class="f-req">*</span></label>
-                <input v-model="modal.form.cargo" class="f-ctl" placeholder="Técnico/a de atención" required />
               </div>
             </div>
             <div class="f2col">

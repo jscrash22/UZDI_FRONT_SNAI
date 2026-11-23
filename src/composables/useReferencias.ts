@@ -3,6 +3,7 @@ import { adolescenteService } from '../services/adolescente.service'
 import { expedienteService } from '../services/expediente.service'
 import { directorioService } from '../services/directorio.service'
 import { createCrudService } from '../services/crud.service'
+import { useToast } from './useToast'
 
 export type RefSource =
   | 'adolescentes' | 'representantes' | 'expedientes' | 'talleres'
@@ -92,6 +93,7 @@ export async function opcionesDe(fuente: RefSource): Promise<Opcion[]> {
     cache.set(fuente, opciones)
     return opciones
   } catch {
+    useToast().error(`No se pudieron cargar las opciones de ${fuente}.`)
     return []
   }
 }

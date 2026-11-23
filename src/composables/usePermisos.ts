@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import api from '../services/api'
+import { apiMock } from '../services/api'
 import { useAuth } from './useAuth'
 import {
   ROL_USUARIO,
@@ -66,13 +66,15 @@ export function usePermisos() {
     return canAccess(module, tppr.value, permisos.value)
   }
 
-  /** Carga la matriz vigente del rol desde /permisos/:rol y la fija para esta sesión. */
+  /** Carga la matriz vigente del rol y la fija para esta sesión. */
   async function cargar(): Promise<void> {
     cargando.value = true
     error.value = null
     const rol = tppr.value
     try {
-      const { data } = await api.get<RolePermissions>(`/permisos/${rol}`)
+      // PENDIENTE BACKEND: GET /api/v1/permisos/:rol con matriz módulo → acciones.
+      // Hasta entonces se usa el mock explícitamente, también con backend real.
+      const { data } = await apiMock.get<RolePermissions>(`/permisos/${rol}`)
       snapshot.value = { rol, permisos: data }
       guardarSnapshot(snapshot.value)
     } catch {

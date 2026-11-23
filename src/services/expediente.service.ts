@@ -1,4 +1,5 @@
 import api from './api'
+import { USE_MOCK } from './mock/adapter'
 
 export interface ExpedienteAdolescenteRef {
   id: number
@@ -11,47 +12,53 @@ export interface ExpedienteCatRef {
   nombre: string
 }
 
-// DDL: el expediente enlaza adolescente + infracción + medida + uzdi con estado y fechas.
+interface AsignacionDto {
+  expe_id?: number
+  expediente_id?: number
+  mdso_id: number
+  medida?: ExpedienteCatRef | null
+  fecha_inicio?: string | null
+  fecha_fin?: string | null
+  estado_cumplimiento?: string
+  estado?: string
+}
+
+// Contrato real del Swagger. Los campos `num_causa`/`estado` string son solo del mock.
 export interface ExpedienteDto {
   id?: number
-  estado: string
-  num_causa: string
-  juzgado: string
-  defensor: string
-  fecha_apertura: string
-  fecha_cierre?: string | null
-  observaciones?: string
-  fecha_inicio_medida: string
-  fecha_fin_medida?: string | null
+  estado?: boolean | string
+  fcCrea?: string
+  fcMod?: string
   adlc_id?: number
   uzdi_id?: number
   infc_id?: number
-  mdso_id?: number
+  numero_causa?: string
+  num_causa?: string
+  estado_procesal?: string
+  observaciones?: string | null
+  fecha_apertura?: string | null
+  fecha_inicio_medida?: string | null
+  fecha_fin_medida?: string | null
+  juzgado?: string
+  defensor?: string
   adolescente?: ExpedienteAdolescenteRef
   uzdi?: ExpedienteCatRef
   infraccion?: ExpedienteCatRef
-  medida?: ExpedienteCatRef
 }
 
 export interface ExpedientePayload {
   adlc_id: number
   uzdi_id: number
   infc_id: number
-  mdso_id: number
-  estado: string
-  num_causa: string
-  juzgado: string
-  defensor: string
-  fecha_apertura: string
-  fecha_cierre?: string
+  numero_causa: string
+  estado_procesal: string
   observaciones?: string
-  fecha_inicio_medida: string
-  fecha_fin_medida?: string
 }
 
 function toTono(estado: string): string {
   const map: Record<string, string> = {
-    'En proceso': 'green', 'Atraso': 'amber', 'Incomparecencia': 'red', 'Cerrado': 'slate',
+    'En proceso': 'green', 'Atraso': 'amber', 'Incomparecencia': 'red',
+    'Concluido': 'slate', 'Archivado': 'slate', 'Cerrado': 'slate',
   }
   return map[estado] ?? 'slate'
 }
@@ -62,30 +69,45 @@ function formatDate(iso?: string | null): string {
   return `${d}/${m}/${y}`
 }
 
+function procesal(e: ExpedienteDto): string {
+  if (typeof e.estado === 'string') return e.estado
+  return e.estado_procesal ?? 'En proceso'
+}
+
 export const expedienteService = {
   async getAll() {
     const { data } = await api.get<ExpedienteDto[]>('/expediente')
+    const pathAsignaciones = USE_MOCK ? '/asignacion-medida' : '/medida-expediente'
+    const { data: asignaciones } = await api.get<AsignacionDto[]>(pathAsignaciones)
     return data.map((e) => {
-      const anio = (e.fecha_inicio_medida ?? '').substring(0, 4) || String(new Date().getFullYear())
+      const asignacion = asignaciones.find((a) =>
+        Number(a.expe_id ?? a.expediente_id) === Number(e.id))
       return {
         id: e.id!,
-        codigo: `EXP-${anio}-${String(e.id!).padStart(4, '0')}`,
-        causa: e.num_causa || '—',
+        codigo: `EXP-${String(e.id!).padStart(4, '0')}`,
+        causa: e.numero_causa ?? e.num_causa ?? '—',
         adol: e.adolescente ? `${e.adolescente.nombre} ${e.adolescente.apellido}` : '—',
         ced: e.adolescente?.cedula ?? '—',
         infraccion: e.infraccion?.nombre ?? '—',
-        juzgado: e.juzgado || '—',
-        defensor: e.defensor || '—',
-        observaciones: e.observaciones || '',
-        medida: e.medida?.nombre ?? '—',
+        juzgado: '—',
+        defensor: '—',
+        observaciones: e.observaciones ?? '',
+        medida: asignacion?.medida?.nombre ?? 'Sin medida asignada',
         uzdi: e.uzdi?.nombre ?? '—',
-        apertura: formatDate(e.fecha_apertura),
-        cierre: formatDate(e.fecha_cierre),
-        inicio: formatDate(e.fecha_inicio_medida),
-        fin: formatDate(e.fecha_fin_medida),
-        estado: e.estado,
-        tono: toTono(e.estado),
-        _raw: e,
+        apertura: formatDate(asignacion?.fecha_inicio),
+        cierre: '—',
+        inicio: formatDate(asignacion?.fecha_inicio),
+        fin: formatDate(asignacion?.fecha_fin),
+        estado: procesal(e),
+        tono: toTono(procesal(e)),
+        _raw: {
+          ...e,
+          num_causa: e.numero_causa ?? e.num_causa,
+          estado: procesal(e),
+          fecha_apertura: asignacion?.fecha_inicio,
+          fecha_inicio_medida: asignacion?.fecha_inicio,
+          fecha_fin_medida: asignacion?.fecha_fin,
+        },
       }
     })
   },

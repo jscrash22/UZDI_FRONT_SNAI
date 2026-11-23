@@ -11,7 +11,8 @@ import DashBarChart      from '../components/dashboard/DashBarChart.vue'
 import DashDonut         from '../components/dashboard/DashDonut.vue'
 import RevisionListCard  from '../components/dashboard/RevisionListCard.vue'
 import QuickAccessCard   from '../components/dashboard/QuickAccessCard.vue'
-import api from '../services/api'
+import { apiMock } from '../services/api'
+import { bitacoraService } from '../services/bitacora.service'
 
 interface FichaRow { id: number; fecha: string; activo?: boolean }
 interface TallerRow { id: number; nombre: string; fecha: string; activo?: boolean }
@@ -48,27 +49,31 @@ async function cargarPanel() {
     tareas.push(expedienteService.getAll().then(rows => { expedientes.value = rows }))
   }
   if (visible('fichas')) {
-    tareas.push(api.get<FichaRow[]>('/ficha-psicologica').then(({ data }) => {
+    // PENDIENTE BACKEND: GET /ficha-psicologica
+    tareas.push(apiMock.get<FichaRow[]>('/ficha-psicologica').then(({ data }) => {
       fichas.value = data.filter(f => f.activo !== false)
     }))
   }
   if (visible('talleres')) {
-    tareas.push(api.get<TallerRow[]>('/taller').then(({ data }) => {
+    // PENDIENTE BACKEND: GET /taller
+    tareas.push(apiMock.get<TallerRow[]>('/taller').then(({ data }) => {
       talleres.value = data.filter(t => t.activo !== false)
     }))
   }
   if (visible('alertas-salud')) {
-    tareas.push(api.get<AlertaRow[]>('/alerta-salud').then(({ data }) => {
+    // PENDIENTE BACKEND: GET /alerta-salud
+    tareas.push(apiMock.get<AlertaRow[]>('/alerta-salud').then(({ data }) => {
       alertas.value = data.filter(a => a.activo !== false)
     }))
   }
   if (visible('asignacion-casos')) {
-    tareas.push(api.get<AsignacionRow[]>('/asignacion-caso').then(({ data }) => {
+    // PENDIENTE BACKEND: GET /asignacion-caso
+    tareas.push(apiMock.get<AsignacionRow[]>('/asignacion-caso').then(({ data }) => {
       asignaciones.value = data.filter(a => a.activo !== false)
     }))
   }
   if (visible('bitacora')) {
-    tareas.push(api.get<BitacoraRow[]>('/bitacora').then(({ data }) => {
+    tareas.push(bitacoraService.getAll().then((data) => {
       bitacora.value = data
     }))
   }

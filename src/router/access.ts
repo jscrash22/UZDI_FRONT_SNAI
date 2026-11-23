@@ -128,6 +128,60 @@ export function roleKey(tppr: number | undefined | null): RoleKey {
   return ROLE_KEY[tppr ?? ROL_USUARIO] ?? 'usuario'
 }
 
+/** Único punto de mapeo entre los perfiles del backend real y los roles del front. */
+export const PERFIL_BACKEND_ROLE: Record<string, RoleKey> = {
+  ADM: 'admin',
+  CORD: 'coordinador',
+  LEGAL: 'juridico',
+  TSOC: 'tsocial',
+  PSIC: 'psicologo',
+  EDUC: 'educador',
+  CONS: 'usuario',
+  JUEZ: 'juridico',
+}
+
+export const PERFIL_BACKEND_ID: Record<string, number> = {
+  ADM: 1, CORD: 2, LEGAL: 3, TSOC: 4, PSIC: 5, EDUC: 6, CONS: 7, JUEZ: 8,
+}
+
+const ROLE_PERFIL_CODIGO: Record<RoleKey, string> = {
+  superadmin: 'ADM', admin: 'ADM', coordinador: 'CORD', tsocial: 'TSOC',
+  psicologo: 'PSIC', educador: 'EDUC', juridico: 'LEGAL', usuario: 'CONS',
+}
+
+const ROLE_TPPR: Record<RoleKey, number> = {
+  superadmin: 4, admin: 3, coordinador: 2, tsocial: 1,
+  psicologo: 6, educador: 7, juridico: 8, usuario: 5,
+}
+
+export function roleKeyDesdePerfil(
+  perfil: { codigo?: unknown; nombre?: unknown } | string | null | undefined,
+): RoleKey {
+  const codigo = typeof perfil === 'string' ? perfil : String(perfil?.codigo ?? '').toUpperCase()
+  if (PERFIL_BACKEND_ROLE[codigo]) return PERFIL_BACKEND_ROLE[codigo]
+  const nombre = typeof perfil === 'string' ? '' : String(perfil?.nombre ?? '').toLowerCase()
+  if (nombre.includes('superadministrador')) return 'superadmin'
+  if (nombre.includes('administrador')) return 'admin'
+  if (nombre.includes('coordinador')) return 'coordinador'
+  if (nombre.includes('legal') || nombre.includes('jurídic') || nombre.includes('juridic')) return 'juridico'
+  if (nombre.includes('trabajador')) return 'tsocial'
+  if (nombre.includes('psicólog') || nombre.includes('psicolog')) return 'psicologo'
+  if (nombre.includes('educador')) return 'educador'
+  return 'usuario'
+}
+
+/** Convierte el perfil real en el id de rol que ya usa la matriz del front. */
+export function tpprDesdePerfil(
+  perfil: { codigo?: unknown; nombre?: unknown } | string | null | undefined,
+): number {
+  return ROLE_TPPR[roleKeyDesdePerfil(perfil)]
+}
+
+/** Id de perfil del backend para un rol del front (el backend no tiene Superadministrador). */
+export function perfilBackendDesdeTppr(tppr: number | undefined | null): number {
+  return PERFIL_BACKEND_ID[ROLE_PERFIL_CODIGO[roleKey(tppr)]]
+}
+
 /** Matriz por defecto del rol, derivada de MODULE_ACCESS. */
 export function defaultPermissions(tppr: number | undefined | null): RolePermissions {
   const key = roleKey(tppr)

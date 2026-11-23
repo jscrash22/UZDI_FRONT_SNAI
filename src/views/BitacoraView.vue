@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Download, Lock } from '@lucide/vue'
-import api from '../services/api'
+import { bitacoraService } from '../services/bitacora.service'
 import DataTable from '../components/ui/DataTable.vue'
 import { useToast } from '../composables/useToast'
 import { formatFechaHora } from '../utils/validators'
@@ -9,7 +9,6 @@ import { formatFechaHora } from '../utils/validators'
 interface Evento {
   id: number
   fecha: string
-  usuario_id: number | null
   usuario: string
   tipo: string
   entidad: string
@@ -40,8 +39,7 @@ async function cargar(): Promise<void> {
   cargando.value = true
   error.value = null
   try {
-    const { data } = await api.get<Evento[]>('/bitacora')
-    rows.value = data
+    rows.value = await bitacoraService.getAll()
   } catch {
     error.value = 'No se pudo cargar la bitácora de seguridad.'
     toast.error(error.value)

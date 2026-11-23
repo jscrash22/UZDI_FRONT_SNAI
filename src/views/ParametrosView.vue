@@ -13,7 +13,7 @@ import {
   type ParametrosNotificaciones,
   type ParametrosSeguridad,
 } from '../config/seguridad'
-import api from '../services/api'
+import { apiMock } from '../services/api'
 
 interface ParametrosApi {
   seguridad?: Partial<ParametrosSeguridad>
@@ -44,7 +44,8 @@ onMounted(async () => {
   uzdiId.value = uid
 
   const [parametros, uzdi] = await Promise.allSettled([
-    api.get<ParametrosApi>('/parametros'),
+    // PENDIENTE BACKEND: GET /parametros
+    apiMock.get<ParametrosApi>('/parametros'),
     uzdiService.getById(uid),
   ])
 
@@ -79,10 +80,10 @@ async function save(section: string) {
     if (section === 'org' && uzdiId.value) {
       await uzdiService.update(uzdiId.value, { ...org.value })
     } else if (section === 'seg') {
-      await api.patch('/parametros', { seguridad: { ...seg.value } })
+      await apiMock.patch('/parametros', { seguridad: { ...seg.value } })
       guardarLocal()
     } else if (section === 'notif') {
-      await api.patch('/parametros', { notificaciones: { ...notif.value } })
+      await apiMock.patch('/parametros', { notificaciones: { ...notif.value } })
       guardarLocal()
     }
     savedSection.value = section

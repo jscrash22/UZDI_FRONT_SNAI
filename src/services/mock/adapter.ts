@@ -137,13 +137,27 @@ const hydrate: Record<string, (r: Row) => Row> = {
     medida: ref(db.medidas, a.mdso_id),
     uzdi: ref(db.uzdis, a.uzdi_id),
   }),
+  '/medida-expediente': (a) => {
+    const expeId = a.expe_id ?? a.expediente_id
+    return {
+      ...a,
+      expe_id: expeId,
+      adlc_id: a.adlc_id ?? find(db.expedientes, expeId)?.adlc_id,
+      adolescente: adolRef(a.adlc_id ?? find(db.expedientes, expeId)?.adlc_id),
+      expediente: expedienteRef(expeId),
+      medida: ref(db.medidas, a.mdso_id),
+      estado_cumplimiento: a.estado_cumplimiento ?? (a.estado === 'En curso' ? 'En proceso' : a.estado),
+      observaciones: a.observaciones ?? a.detalle,
+      uzdi: ref(db.uzdis, a.uzdi_id),
+    }
+  },
   '/informe-tecnico': (i) => ({
     ...i,
     adolescente: adolRef(i.adlc_id),
     generador: userRef(i.generado_por),
     uzdi: ref(db.uzdis, i.uzdi_id),
   }),
-  '/canton': (c) => ({ ...c, provincia: ref(db.provincias, c.provincia_id) }),
+  '/canton': (c) => ({ ...c, prov_id: c.prov_id ?? c.provincia_id, provincia: ref(db.provincias, c.provincia_id) }),
   '/bitacora': (b) => ({ ...b }),
   '/perfil': (p) => ({ ...p }),
   '/uzdi': (u) => ({ ...u, canton: ref(db.cantones, u.cntn_id), provincia: ref(db.provincias, u.provincia_id) }),
@@ -188,6 +202,7 @@ const collections: Collection[] = [
   { path: '/alerta-salud', rows: db.alertasSalud, module: 'alertas-salud', scoped: true },
   { path: '/asignacion-caso', rows: db.asignacionesCaso, module: 'asignacion-casos', scoped: true },
   { path: '/asignacion-medida', rows: db.asignacionesMedida, module: 'medidas', scoped: true },
+  { path: '/medida-expediente', rows: db.asignacionesMedida, module: 'medidas', scoped: true },
   { path: '/informe-tecnico', rows: db.informesTecnicos, module: 'informes', scoped: true },
   { path: '/bitacora', rows: db.bitacora, module: 'bitacora', readOnly: true },
   { path: '/perfil', rows: db.perfiles, module: 'perfiles', readOpen: true },
@@ -324,6 +339,22 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   const query = Object.fromEntries(new URLSearchParams(rawQuery))
   const body: Row = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
   const user = usuarioDeToken(config)
+
+  // Alias de campos para que el mock acepte el mismo DTO que el backend real.
+  if (url === '/medida-expediente') {
+    if (body.expe_id !== undefined && body.expediente_id === undefined) body.expediente_id = Number(body.expe_id)
+    if (body.estado_cumplimiento !== undefined && body.estado === undefined) body.estado = body.estado_cumplimiento
+    if (body.observaciones !== undefined && body.detalle === undefined) body.detalle = body.observaciones
+    if (body.expediente_id !== undefined && body.adlc_id === undefined) {
+      body.adlc_id = find(db.expedientes, body.expediente_id)?.adlc_id
+    }
+  }
+  if (url === '/canton' && body.prov_id !== undefined && body.provincia_id === undefined) {
+    body.provincia_id = Number(body.prov_id)
+  }
+  if (url === '/uzdi' && body.cntn_id !== undefined) {
+    body.provincia_id = find(db.cantones, body.cntn_id)?.provincia_id
+  }
 
   // ── Autenticación ────────────────────────────────────────────
   if (url === '/auth/login' && method === 'post') {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { FileText, Printer, Sparkles } from '@lucide/vue'
-import api from '../services/api'
+import { apiMock } from '../services/api'
 import { adolescenteService } from '../services/adolescente.service'
 import { createCrudService } from '../services/crud.service'
 import { usePermisos } from '../composables/usePermisos'
@@ -204,7 +204,8 @@ async function generar(): Promise<void> {
       ],
     })
 
-    const { data } = await api.post<InformeCreado>('/informe-tecnico', {
+    // PENDIENTE BACKEND: POST /informe-tecnico
+    const { data } = await apiMock.post<InformeCreado>('/informe-tecnico', {
       adlc_id: adlc,
       tipo: form.tipo,
       periodo_desde: form.desde,

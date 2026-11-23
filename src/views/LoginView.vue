@@ -2,6 +2,7 @@
 import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authService } from '../services/auth.service'
+import { conectandoLento, mensajeError } from '../services/api'
 import { useAuth } from '../composables/useAuth'
 import { usePermisos } from '../composables/usePermisos'
 import { leerSeguridad } from '../config/seguridad'
@@ -214,15 +215,16 @@ async function handleSubmit() {
     }
     setTimeout(() => router.push('/app/dashboard'), 800)
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
+    const status = (err as { status?: number; response?: { status?: number } })?.status
+      ?? (err as { response?: { status?: number } })?.response?.status
     if (status === 401) {
       registrarIntentoFallido()
     } else {
       form.banner = {
         type: 'error',
         icon: 'connection',
-        title: 'Error de conexión',
-        msg: 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.',
+        title: 'No se pudo completar el ingreso',
+        msg: mensajeError(err),
       }
     }
   } finally {
@@ -328,6 +330,20 @@ async function handleSubmit() {
           </div>
         </Transition>
 
+        <div
+          v-if="form.loading && conectandoLento"
+          class="lg-banner is-info"
+          role="status"
+        >
+          <span class="lg-banner-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+          <div class="lg-banner-txt">
+            <strong>Conectando con el servidor</strong>
+            <span>Puede tardar unos segundos mientras se activa el servicio.</span>
+          </div>
+        </div>
+
         <!-- Form -->
         <form class="lg-form" @submit.prevent="handleSubmit" novalidate>
           <!-- Campo usuario -->
@@ -421,7 +437,7 @@ async function handleSubmit() {
             <Transition name="btn-content" mode="out-in">
               <span v-if="form.loading" key="loading" class="lg-btn-inner">
                 <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2a10 10 0 0 1 10 10"/></svg>
-                Verificando credenciales…
+                {{ conectandoLento ? 'Conectando con el servidor…' : 'Verificando credenciales…' }}
               </span>
               <span v-else-if="form.success" key="success" class="lg-btn-inner">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>

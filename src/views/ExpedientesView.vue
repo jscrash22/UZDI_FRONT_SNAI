@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { FolderPlus, Pencil, Lock, Save, X as XIcon } from '@lucide/vue'
 import { expedienteService, type ExpedientePayload } from '../services/expediente.service'
+import { mensajeError } from '../services/api'
 import { adolescenteService } from '../services/adolescente.service'
 import { useCatalogos } from '../composables/useCatalogos'
 import { usePermisos } from '../composables/usePermisos'
@@ -9,7 +10,7 @@ import { useToast } from '../composables/useToast'
 
 type ModalMode = 'new' | 'edit' | 'delete' | null
 
-const { uzdis, infracciones, medidas, cargarCatalogos } = useCatalogos()
+const { uzdis, infracciones, cargarCatalogos } = useCatalogos()
 const { puede } = usePermisos()
 const toast = useToast()
 
@@ -37,8 +38,8 @@ async function cargarTodo() {
       expedienteService.getAll(),
       adolescenteService.getAll(),
     ])
-  } catch {
-    error.value = 'No se pudieron cargar los expedientes. Intenta nuevamente.'
+  } catch (e) {
+    error.value = mensajeError(e)
     toast.error(error.value)
   } finally {
     cargando.value = false
@@ -52,8 +53,8 @@ const selectedCodigo = computed(() => {
   return row?.codigo ?? ''
 })
 
-const ESTADOS = ['En proceso', 'Atraso', 'Incomparecencia', 'Cerrado'] as const
-const ESTADOS_FORM = ESTADOS.filter(e => e !== 'Cerrado')
+const ESTADOS = ['En proceso', 'Atraso', 'Incomparecencia', 'Concluido', 'Archivado'] as const
+const ESTADOS_FORM = ESTADOS.filter(e => e !== 'Archivado')
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
@@ -67,36 +68,23 @@ const filtered = computed(() => {
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
 const paged = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
-const hoyISO = () => new Date().toISOString().slice(0, 10)
-
 const defaultForm = {
   adlc_id: 0,
   uzdi_id: 0,
   infc_id: 0,
-  mdso_id: 0,
-  estado: 'En proceso',
-  num_causa: '',
-  juzgado: '',
-  defensor: '',
-  fecha_apertura: hoyISO(),
+  estado_procesal: 'En proceso',
+  numero_causa: '',
   observaciones: '',
-  fecha_inicio_medida: '',
-  fecha_fin_medida: '',
 }
 const form = reactive({ ...defaultForm })
 
-const fechasInvalidas = computed(() =>
-  !!form.fecha_inicio_medida && !!form.fecha_fin_medida && form.fecha_fin_medida < form.fecha_inicio_medida
-)
-
 const formValido = computed(() =>
-  form.adlc_id > 0 && form.uzdi_id > 0 && form.infc_id > 0 && form.mdso_id > 0 &&
-  !!form.estado && !!form.num_causa.trim() && !!form.juzgado.trim() && !!form.defensor.trim() &&
-  !!form.fecha_apertura && !!form.fecha_inicio_medida && !fechasInvalidas.value
+  form.adlc_id > 0 && form.uzdi_id > 0 && form.infc_id > 0 &&
+  !!form.estado_procesal && !!form.numero_causa.trim()
 )
 
 function openNew() {
-  Object.assign(form, { ...defaultForm, fecha_apertura: hoyISO() })
+  Object.assign(form, { ...defaultForm })
   modal.value = 'new'
 }
 function openEdit(id: number) {
@@ -106,15 +94,9 @@ function openEdit(id: number) {
     adlc_id: raw.adlc_id ?? 0,
     uzdi_id: raw.uzdi_id ?? 0,
     infc_id: raw.infc_id ?? 0,
-    mdso_id: raw.mdso_id ?? 0,
-    estado: raw.estado,
-    num_causa: raw.num_causa ?? '',
-    juzgado: raw.juzgado ?? '',
-    defensor: raw.defensor ?? '',
-    fecha_apertura: raw.fecha_apertura?.substring(0, 10) ?? '',
+    estado_procesal: row.estado,
+    numero_causa: raw.numero_causa ?? raw.num_causa ?? '',
     observaciones: raw.observaciones ?? '',
-    fecha_inicio_medida: raw.fecha_inicio_medida?.substring(0, 10) ?? '',
-    fecha_fin_medida: raw.fecha_fin_medida?.substring(0, 10) ?? '',
   })
   selectedId.value = id
   modal.value = 'edit'
@@ -129,15 +111,9 @@ async function handleSave() {
     adlc_id: form.adlc_id,
     uzdi_id: form.uzdi_id,
     infc_id: form.infc_id,
-    mdso_id: form.mdso_id,
-    estado: form.estado,
-    num_causa: form.num_causa.trim(),
-    juzgado: form.juzgado.trim(),
-    defensor: form.defensor.trim(),
-    fecha_apertura: form.fecha_apertura,
+    estado_procesal: form.estado_procesal,
+    numero_causa: form.numero_causa.trim(),
     observaciones: form.observaciones.trim() || undefined,
-    fecha_inicio_medida: form.fecha_inicio_medida,
-    fecha_fin_medida: form.fecha_fin_medida || undefined,
   }
   try {
     if (modal.value === 'edit') {
@@ -149,20 +125,20 @@ async function handleSave() {
     }
     rows.value = await expedienteService.getAll()
     modal.value = null
-  } catch {
-    toast.error('No se pudo guardar. Intenta nuevamente.')
+  } catch (e) {
+    toast.error(mensajeError(e))
   }
 }
 
 async function handleCerrar() {
   if (!selectedId.value) return
   try {
-    await expedienteService.update(selectedId.value, { estado: 'Cerrado', fecha_cierre: hoyISO() })
+    await expedienteService.update(selectedId.value, { estado_procesal: 'Concluido' })
     rows.value = await expedienteService.getAll()
-    toast.success('Expediente cerrado; queda en solo consulta y conserva su historial.')
+    toast.success('Expediente concluido; queda en solo consulta y conserva su historial.')
     modal.value = null
-  } catch {
-    toast.error('No se pudo cerrar el expediente. Intenta nuevamente.')
+  } catch (e) {
+    toast.error(mensajeError(e))
   }
 }
 
@@ -208,10 +184,9 @@ const selectedRow = () => rows.value.find(r => r.id === selectedId.value)
         <tr>
           <th>N.º Expediente / causa</th>
           <th>Adolescente</th>
-          <th>Infracción / juzgado</th>
+          <th>Infracción</th>
           <th>Medida</th>
           <th>UZDI</th>
-          <th>Apertura / cierre</th>
           <th>Estado</th>
           <th style="text-align:right;">Acciones</th>
         </tr>
@@ -230,20 +205,9 @@ const selectedRow = () => rows.value.find(r => r.id === selectedId.value)
               <span>{{ e.ced }}</span>
             </div>
           </td>
-          <td>
-            <div class="td-name">
-              <b>{{ e.infraccion }}</b>
-              <span>{{ e.juzgado }}</span>
-            </div>
-          </td>
+          <td>{{ e.infraccion }}</td>
           <td>{{ e.medida }}</td>
           <td>{{ e.uzdi }}</td>
-          <td>
-            <div class="td-name">
-              <b>{{ e.apertura }}</b>
-              <span>{{ e.cierre !== '—' ? `Cierre: ${e.cierre}` : 'Sin cierre' }}</span>
-            </div>
-          </td>
           <td>
             <span :class="['badge', e.tono]">
               <span class="bdot" />{{ e.estado }}
@@ -251,23 +215,23 @@ const selectedRow = () => rows.value.find(r => r.id === selectedId.value)
           </td>
           <td class="td-actions">
             <div class="row">
-              <button v-if="puedeEditar && e.estado !== 'Cerrado'" class="ico-btn" type="button" title="Editar" @click="openEdit(e.id)">
+              <button v-if="puedeEditar && e.estado !== 'Concluido' && e.estado !== 'Archivado'" class="ico-btn" type="button" title="Editar" @click="openEdit(e.id)">
                 <Pencil :size="16" />
               </button>
-              <button v-if="puedeEditar && e.estado !== 'Cerrado'" class="ico-btn danger" type="button" title="Cerrar expediente" @click="openCerrar(e.id)">
+              <button v-if="puedeEditar && e.estado !== 'Concluido' && e.estado !== 'Archivado'" class="ico-btn danger" type="button" title="Cerrar expediente" @click="openCerrar(e.id)">
                 <Lock :size="16" />
               </button>
             </div>
           </td>
         </tr>
         <tr v-if="cargando">
-          <td colspan="8" style="text-align:center;padding:32px;color:var(--color-text-muted);">Cargando expedientes…</td>
+          <td colspan="7" style="text-align:center;padding:32px;color:var(--color-text-muted);">Cargando expedientes…</td>
         </tr>
         <tr v-else-if="error">
-          <td colspan="8" style="text-align:center;padding:32px;color:var(--color-carmesi, #b42318);">{{ error }}</td>
+          <td colspan="7" style="text-align:center;padding:32px;color:var(--color-carmesi, #b42318);">{{ error }}</td>
         </tr>
         <tr v-else-if="paged.length === 0">
-          <td colspan="8" style="text-align:center;padding:32px;color:var(--color-text-muted);">Sin resultados para los filtros aplicados</td>
+          <td colspan="7" style="text-align:center;padding:32px;color:var(--color-text-muted);">Sin resultados para los filtros aplicados</td>
         </tr>
       </tbody>
     </table>
@@ -302,93 +266,56 @@ const selectedRow = () => rows.value.find(r => r.id === selectedId.value)
         </button>
       </div>
       <div class="modal-body">
-        <div class="fsec">
-          <div class="fsec-title">Datos judiciales</div>
-          <div class="frow c2">
-            <div class="f">
-              <label class="f-label" for="exp-causa">N.º de causa <span class="req">*</span></label>
-              <input id="exp-causa" class="f-ctl" v-model="form.num_causa" placeholder="Ej. CAUSA-2026-0123" />
+          <div class="fsec">
+            <div class="fsec-title">Datos del expediente</div>
+            <div class="frow c2">
+              <div class="f">
+                <label class="f-label" for="exp-causa">N.º de causa <span class="req">*</span></label>
+                <input id="exp-causa" class="f-ctl" v-model="form.numero_causa" placeholder="Ej. CAUSA-2026-0123" />
+              </div>
+              <div class="f">
+                <label class="f-label" for="exp-estado">Estado <span class="req">*</span></label>
+                <select id="exp-estado" class="f-ctl" v-model="form.estado_procesal">
+                  <option v-for="e in ESTADOS_FORM" :key="e" :value="e">{{ e }}</option>
+                </select>
+              </div>
             </div>
-            <div class="f">
-              <label class="f-label" for="exp-juzgado">Juzgado de origen <span class="req">*</span></label>
-              <input id="exp-juzgado" class="f-ctl" v-model="form.juzgado" placeholder="Unidad judicial" />
-            </div>
-          </div>
-          <div class="frow c2" style="margin-top:16px;">
-            <div class="f">
-              <label class="f-label" for="exp-defensor">Defensor/a <span class="req">*</span></label>
-              <input id="exp-defensor" class="f-ctl" v-model="form.defensor" placeholder="Nombre del defensor o defensora" />
-            </div>
-            <div class="f">
-              <label class="f-label" for="exp-apertura">Fecha de apertura <span class="req">*</span></label>
-              <input id="exp-apertura" class="f-ctl" type="date" v-model="form.fecha_apertura" />
-            </div>
-          </div>
-          <div class="frow" style="margin-top:16px;">
-            <div class="f">
-              <label class="f-label" for="exp-obs">Observaciones</label>
-              <textarea id="exp-obs" class="f-ctl" rows="2" v-model="form.observaciones" placeholder="Notas de seguimiento del expediente…" />
+            <div class="frow" style="margin-top:16px;">
+              <div class="f">
+                <label class="f-label" for="exp-obs">Observaciones</label>
+                <textarea id="exp-obs" class="f-ctl" rows="2" v-model="form.observaciones" placeholder="Notas de seguimiento del expediente…" />
+              </div>
             </div>
           </div>
-        </div>
-        <div class="fsec" style="margin-top:24px;">
-          <div class="fsec-title">Vínculos del expediente</div>
-          <div class="frow c2">
-            <div class="f">
-              <div class="f-label">Adolescente <span class="req">*</span></div>
-              <select class="f-ctl" v-model="form.adlc_id">
-                <option :value="0">Seleccione un adolescente…</option>
-                <option v-for="a in adolescentes" :key="a.id" :value="a.id">{{ a.nombre }} ({{ a.ced }})</option>
-              </select>
+          <div class="fsec" style="margin-top:24px;">
+            <div class="fsec-title">Vínculos del expediente</div>
+            <div class="frow c2">
+              <div class="f">
+                <div class="f-label">Adolescente <span class="req">*</span></div>
+                <select class="f-ctl" v-model="form.adlc_id">
+                  <option :value="0">Seleccione un adolescente…</option>
+                  <option v-for="a in adolescentes" :key="a.id" :value="a.id">{{ a.nombre }} ({{ a.ced }})</option>
+                </select>
+              </div>
+              <div class="f">
+                <div class="f-label">UZDI <span class="req">*</span></div>
+                <select class="f-ctl" v-model="form.uzdi_id">
+                  <option :value="0">Seleccione una UZDI…</option>
+                  <option v-for="u in uzdis" :key="u.id" :value="u.id">{{ u.nombre }}</option>
+                </select>
+              </div>
             </div>
-            <div class="f">
-              <div class="f-label">Estado <span class="req">*</span></div>
-              <select class="f-ctl" v-model="form.estado">
-                <option v-for="e in ESTADOS_FORM" :key="e" :value="e">{{ e }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="frow c2" style="margin-top:16px;">
-            <div class="f">
-              <div class="f-label">UZDI <span class="req">*</span></div>
-              <select class="f-ctl" v-model="form.uzdi_id">
-                <option :value="0">Seleccione una UZDI…</option>
-                <option v-for="u in uzdis" :key="u.id" :value="u.id">{{ u.nombre }}</option>
-              </select>
-            </div>
-            <div class="f">
-              <div class="f-label">Infracción <span class="req">*</span></div>
-              <select class="f-ctl" v-model="form.infc_id">
-                <option :value="0">Seleccione una infracción…</option>
-                <option v-for="i in infracciones" :key="i.id" :value="i.id">{{ i.nombre }}</option>
-              </select>
+            <div class="frow c2" style="margin-top:16px;">
+              <div class="f">
+                <div class="f-label">Infracción <span class="req">*</span></div>
+                <select class="f-ctl" v-model="form.infc_id">
+                  <option :value="0">Seleccione una infracción…</option>
+                  <option v-for="i in infracciones" :key="i.id" :value="i.id">{{ i.nombre }}</option>
+                </select>
+              </div>
+              <div class="f"></div>
             </div>
           </div>
-          <div class="frow c2" style="margin-top:16px;">
-            <div class="f">
-              <div class="f-label">Medida socioeducativa <span class="req">*</span></div>
-              <select class="f-ctl" v-model="form.mdso_id">
-                <option :value="0">Seleccione una medida…</option>
-                <option v-for="m in medidas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
-              </select>
-            </div>
-            <div class="f"></div>
-          </div>
-        </div>
-        <div class="fsec" style="margin-top:24px;">
-          <div class="fsec-title">Fechas de medida</div>
-          <div class="frow c2">
-            <div class="f">
-              <div class="f-label">Fecha inicio <span class="req">*</span></div>
-              <input class="f-ctl" type="date" v-model="form.fecha_inicio_medida" />
-            </div>
-            <div class="f">
-              <div class="f-label">Fecha fin</div>
-              <input class="f-ctl" type="date" v-model="form.fecha_fin_medida" />
-              <div v-if="fechasInvalidas" class="f-err" role="alert">La fecha fin no puede ser anterior a la fecha de inicio.</div>
-            </div>
-          </div>
-        </div>
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" type="button" @click="modal = null">

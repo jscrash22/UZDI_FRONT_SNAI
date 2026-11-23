@@ -5,6 +5,9 @@ export interface MedidaDto {
   id?: number
   nombre: string
   duracion_meses?: number | null
+  descripcion?: string | null
+  estado?: boolean
+  activo?: boolean
 }
 
 export interface MedidaPayload {
@@ -20,7 +23,8 @@ export const medidaService = {
       codigo: `MED-${String(m.id!).padStart(4, '0')}`,
       nombre: m.nombre,
       duracion: m.duracion_meses ?? null,
-      _raw: m,
+      descripcion: m.descripcion ?? '',
+      _raw: { ...m, activo: m.activo ?? m.estado !== false },
     }))
   },
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Lock, Save, ShieldCheck } from '@lucide/vue'
-import api from '../services/api'
+import { apiMock } from '../services/api'
 import { useToast } from '../composables/useToast'
 import { usePermisos } from '../composables/usePermisos'
 import { NAV_GROUPS } from '../router/nav'
@@ -45,7 +45,8 @@ function normalizar(datos: RolePermissions): RolePermissions {
 async function cargarRol(): Promise<void> {
   cargando.value = true
   try {
-    const { data } = await api.get<RolePermissions>(`/permisos/${seleccion.value}`)
+    // PENDIENTE BACKEND: GET /permisos/:rol con matriz módulo → acciones
+    const { data } = await apiMock.get<RolePermissions>(`/permisos/${seleccion.value}`)
     matriz.value = normalizar(data)
   } catch {
     matriz.value = normalizar(defaultPermissions(seleccion.value))
@@ -77,7 +78,8 @@ function cambiar(modulo: ModuleId, accion: Action, evento: Event): void {
 async function guardar(): Promise<void> {
   guardando.value = true
   try {
-    await api.put(`/permisos/${seleccion.value}`, matriz.value)
+    // PENDIENTE BACKEND: PUT /permisos/:rol con matriz módulo → acciones
+    await apiMock.put(`/permisos/${seleccion.value}`, matriz.value)
     toast.success('Matriz de permisos actualizada. Se aplicará en el siguiente ingreso.')
     confirmar.value = false
   } catch {

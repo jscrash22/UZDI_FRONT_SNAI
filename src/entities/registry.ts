@@ -38,6 +38,7 @@ export interface CampoDef {
   ref?: RefSource
   hint?: string
   placeholder?: string
+  valorInicial?: unknown
   ancho?: 'full'
   validate?: (value: unknown, form: Record<string, unknown>) => string
 }
@@ -83,7 +84,14 @@ function fecha(row: Registro, key: string): string {
 
 function refTexto(row: Registro, key: string): string {
   const valor = row[key]
-  if (!valor || typeof valor !== 'object') return vacio
+  if (!valor || typeof valor !== 'object') {
+    const idClaves: Record<string, string> = {
+      adolescente: 'adlc_id', expediente: 'expe_id', medida: 'mdso_id',
+      representante: 'representante_id', usuario: 'usuario_id', taller: 'taller_id',
+    }
+    const id = row[idClaves[key] ?? `${key}_id`]
+    return id ? `#${String(id)}` : vacio
+  }
   const obj = valor as Record<string, unknown>
   const nombre = `${String(obj.nombre ?? '')} ${String(obj.apellido ?? '')}`.trim()
   if (nombre) return nombre
@@ -100,9 +108,9 @@ function badgeActivo(row: Registro): TonoBadge {
   return row.activo === false ? 'slate' : 'green'
 }
 
-function badgeEstado(verde: string[], ambar: string[], rojo: string[]) {
+function badgeEstado(verde: string[], ambar: string[], rojo: string[], clave = 'estado') {
   return (row: Registro): TonoBadge => {
-    const estado = String(row.estado ?? '')
+    const estado = String(row[clave] ?? '')
     if (rojo.includes(estado)) return 'red'
     if (ambar.includes(estado)) return 'amber'
     if (verde.includes(estado)) return 'green'
@@ -432,47 +440,45 @@ export const MEDIDA: ModuloDef = {
   id: 'medidas',
   path: '/medida-socioeducativa',
   title: 'Catálogo de medidas',
-  subtitle: 'La duración es referencial; la fecha de fin se registra en cada asignación.',
+  subtitle: 'La duración es referencial; la fecha de fin se registra en cada asignación. La descripción está pendiente de backend.',
   singular: 'la medida',
   bajaLabel: 'Desactivar medida',
   bajaAviso: 'La medida dejará de ofrecerse en nuevas asignaciones; las asignaciones existentes conservan su historial.',
-  searchKeys: ['nombre', 'descripcion'],
+  searchKeys: ['nombre'],
   fields: [
     { key: 'nombre', label: 'Nombre de la medida', required: true, ancho: 'full' },
     { key: 'duracion_meses', label: 'Duración de referencia (meses)', type: 'number' },
-    { key: 'descripcion', label: 'Descripción', type: 'textarea', ancho: 'full' },
   ],
   columns: [
     { key: 'nombre', label: 'Medida', value: (r) => texto(r, 'nombre') },
     { key: 'duracion_meses', label: 'Duración (meses)', value: (r) => texto(r, 'duracion_meses'), align: 'center' },
-    { key: 'descripcion', label: 'Descripción', value: (r) => texto(r, 'descripcion') },
     campoActivo,
   ],
 }
 
 export const ASIGNACION_MEDIDA: ModuloDef = {
   id: 'medidas',
-  path: '/asignacion-medida',
+  path: '/medida-expediente',
   title: 'Asignaciones de medida',
   subtitle: 'La duración del catálogo es referencial; la fecha de fin se registra en cada asignación.',
   singular: 'la asignación de medida',
-  searchKeys: ['detalle', 'estado'],
+  searchKeys: ['observaciones', 'estado_cumplimiento'],
   fields: [
-    { key: 'adlc_id', label: 'Adolescente', type: 'ref', ref: 'adolescentes', required: true },
-    { key: 'expediente_id', label: 'Expediente', type: 'ref', ref: 'expedientes', required: true },
+    { key: 'expe_id', label: 'Expediente', type: 'ref', ref: 'expedientes', required: true },
     { key: 'mdso_id', label: 'Medida', type: 'ref', ref: 'medidas', required: true },
+    { key: 'orden', label: 'Orden', type: 'number', required: true, valorInicial: 1 },
     { key: 'fecha_inicio', label: 'Fecha de inicio', type: 'date', required: true },
-    { key: 'fecha_fin', label: 'Fecha de fin estimada', type: 'date', required: true, validate: validarFin },
-    { key: 'estado', label: 'Estado de cumplimiento', type: 'select', options: ['En curso', 'Cumplida', 'Incumplida'], required: true },
-    { key: 'detalle', label: 'Detalle de cumplimiento', type: 'textarea', ancho: 'full' },
+    { key: 'fecha_fin', label: 'Fecha de fin estimada', type: 'date', validate: validarFin },
+    { key: 'estado_cumplimiento', label: 'Estado de cumplimiento', type: 'select', options: ['En proceso', 'Cumplida', 'Incumplida'], required: true },
+    { key: 'observaciones', label: 'Detalle de cumplimiento', type: 'textarea', ancho: 'full' },
   ],
   columns: [
     { key: 'adolescente', label: 'Adolescente', value: (r) => refTexto(r, 'adolescente') },
     { key: 'medida', label: 'Medida', value: (r) => refTexto(r, 'medida') },
     { key: 'fecha_inicio', label: 'Inicio', value: (r) => fecha(r, 'fecha_inicio') },
     { key: 'fecha_fin', label: 'Fin', value: (r) => fecha(r, 'fecha_fin') },
-    { key: 'estado', label: 'Estado', value: (r) => texto(r, 'estado'),
-      badge: badgeEstado(['Cumplida'], ['En curso'], ['Incumplida']) },
+    { key: 'estado_cumplimiento', label: 'Estado', value: (r) => texto(r, 'estado_cumplimiento'),
+      badge: badgeEstado(['Cumplida'], ['En proceso'], ['Incumplida'], 'estado_cumplimiento') },
   ],
 }
 
@@ -489,8 +495,7 @@ export const UZDI: ModuloDef = {
   fields: [
     { key: 'nombre', label: 'Nombre', required: true },
     { key: 'zona', label: 'Zona', required: true },
-    { key: 'provincia_id', label: 'Provincia', type: 'ref', ref: 'provincias' },
-    { key: 'cntn_id', label: 'Cantón', type: 'ref', ref: 'cantones' },
+    { key: 'cntn_id', label: 'Cantón', type: 'ref', ref: 'cantones', required: true },
     { key: 'direccion', label: 'Dirección', ancho: 'full' },
     { key: 'telefono', label: 'Teléfono', type: 'tel', validate: validarTelefono },
     { key: 'correo', label: 'Correo institucional', type: 'email' },
@@ -544,7 +549,7 @@ function catalogo(id: ModuleId, path: string, title: string, singular: string, c
 
 export const PROVINCIA = catalogo('catalogos', '/provincia', 'Provincias', 'la provincia')
 export const CANTON = catalogo('catalogos', '/canton', 'Cantones', 'el cantón',
-  [{ key: 'provincia_id', label: 'Provincia', type: 'ref', ref: 'provincias', required: true }],
+  [{ key: 'prov_id', label: 'Provincia', type: 'ref', ref: 'provincias', required: true }],
   [{ key: 'provincia', label: 'Provincia', value: (r) => refTexto(r, 'provincia') }])
 export const NACIONALIDAD = catalogo('catalogos', '/nacionalidad', 'Nacionalidades', 'la nacionalidad')
 export const ESTADO_CIVIL = catalogo('catalogos', '/estado-civil', 'Estados civiles', 'el estado civil')

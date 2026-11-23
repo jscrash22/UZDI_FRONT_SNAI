@@ -30,6 +30,8 @@ export interface AdolescenteDto {
   cntn_id?: number
   gdo_id?: number | null
   uzdi_id?: number
+  estado?: boolean
+  activo?: boolean
 }
 
 // Payload de creación/edición: FKs por id.
@@ -79,7 +81,7 @@ export const adolescenteService = {
       nacionalidad: a.nacionalidad?.nombre ?? '—',
       canton: a.canton?.nombre ?? '—',
       ingreso: formatDate(a.fecha_ingr),
-      _raw: a,
+      _raw: { ...a, activo: a.activo ?? a.estado !== false },
     }))
   },
 

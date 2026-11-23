@@ -20,6 +20,7 @@ const { puede } = usePermisos()
 const service = createCrudService<Registro, Record<string, unknown>>(props.def.path)
 
 function vacio(campo: CampoDef): unknown {
+  if (campo.valorInicial !== undefined) return campo.valorInicial
   if (campo.type === 'checkbox') return false
   return ''
 }
@@ -99,7 +100,10 @@ function abrirBaja(row: Registro): void {
 
 function escribir(key: string, evento: Event): void {
   const control = evento.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  form.value[key] = control.value
+  const campo = props.def.fields.find((f) => f.key === key)
+  form.value[key] = campo?.type === 'number' && control.value !== ''
+    ? Number(control.value)
+    : control.value
   delete errores[key]
 }
 
