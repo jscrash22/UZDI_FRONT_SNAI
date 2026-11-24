@@ -11,7 +11,7 @@ import {
   type RolePermissions,
 } from '../router/access'
 
-const LS_PERMISOS = 'uzdi_permisos'
+const LS_PERMISOS = 'uzdi_permisos_v2'
 
 interface Snapshot {
   rol: number

@@ -94,7 +94,7 @@ export const MODULE_ACCESS: Record<ModuleId, Partial<Record<RoleKey, Action[]>>>
   permisos: { superadmin: CE, admin: V },
   parametros: { superadmin: CE, admin: CE },
   adolescentes: {
-    superadmin: V, admin: V, coordinador: V, tsocial: CEB,
+    superadmin: CEB, admin: CEB, coordinador: V, tsocial: CEB,
     psicologo: V, educador: V, juridico: V,
   },
   representantes: { coordinador: V, tsocial: CEB },
